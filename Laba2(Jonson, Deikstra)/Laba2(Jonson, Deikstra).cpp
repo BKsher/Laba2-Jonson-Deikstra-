@@ -9,29 +9,41 @@ struct edge {
 int n, m;
 vector<edge> e;
 vector < vector < pair<int, double> > > g;
+vector <vector <double>> graph;
 const double INF = 1000000000;
 
-bool isDirected = false;
+bool isDirected = true;
+
+void add_edge(int a, int b, double cost) {
+	g[a].push_back({ b, cost });
+	if (!isDirected) g[b].push_back({ a, cost });
+	e.push_back({ a, b, cost });
+	graph[a][b] = cost;
+}
 
 vector<double> ford_belman(vector<edge> e) {
-	vector<double> d(n, INF);
-	int s = 0;
-	d[s] = 0;
-	while (true) {
-		bool any = false;
-		for (int j = 0; j < e.size(); ++j)
+	vector<double> d(n+1, INF);
+	d[n] = 0;
+
+	for (int i = 0; i < n; i++)
+		e.push_back({ n, i, 0 });
+
+	for (int i = 0; i < n; i++) {
+		for (int j = 0; j < e.size(); j++)
 			if (d[e[j].a] < INF)
-				if (d[e[j].b] > d[e[j].a] + e[j].cost) {
+				if (d[e[j].b] > d[e[j].a] + e[j].cost)
 					d[e[j].b] = d[e[j].a] + e[j].cost;
-					any = true;
-				}
-		if (!any)  break;
 	}
+	for (int j = 0; j < e.size(); j++)
+		if (d[e[j].b] > d[e[j].a] + e[j].cost) {
+			d.clear();
+			return d;
+		}
+	d.pop_back();
 	return d;
 }
 
-vector<double> dejkstra(vector < vector < pair<int, double> > > g, int n) {
-	int s = 0;
+vector<double> dijkstra(vector < vector < pair<int, double> > > g, vector < vector <double> > modifiedGraph, int s = 0) {
 	vector<double> d(n, INF), p(n);
 	d[s] = 0;
 	set < pair<int, int> > q;
@@ -42,7 +54,7 @@ vector<double> dejkstra(vector < vector < pair<int, double> > > g, int n) {
 
 		for (size_t j = 0; j < g[v].size(); ++j) {
 			int to = g[v][j].first,
-				len = g[v][j].second;
+				len = modifiedGraph[v][to];
 			if (d[v] + len < d[to]) {
 				q.erase(make_pair(d[to], to));
 				d[to] = d[v] + len;
@@ -54,31 +66,43 @@ vector<double> dejkstra(vector < vector < pair<int, double> > > g, int n) {
 	return d;
 }
 
-void add_edge(int a, int b, double cost) {
-	g[a].push_back({ b, cost });
-	if(!isDirected) g[b].push_back({ a, cost });
-	e.push_back({ a, b, cost });
+void johnson() {
+	vector<double> modifyWeights = ford_belman(e);
+	vector< vector <double> > modifiedGraph(n, vector<double>(n, 0));
+	if (modifyWeights.empty()) {
+		cout << "Graph has cycle of negative length\n";
+		return;
+	}
+	for (int i = 0; i < n; i++)
+		for (int j = 0; j < n; j++) 
+			if (graph[i][j] != 0)
+				modifiedGraph[i][j] = (graph[i][j] + modifyWeights[i] - modifyWeights[j]);
+
+	for (int i = 0; i < n; i++) {
+		for (int j = 0; j < n; j++)
+			cout << modifiedGraph[i][j] << ' ';
+		cout << '\n';
+	}
+
+	for (int s = 0; s < n; s++) {
+		vector<double> d = dijkstra(g, modifiedGraph, s);
+
+		cout << "Distanses from vertex " << s << ":\n";
+		for (int i = 0; i < n; i++)
+			cout << "to vertex " << i << " : " << d[i] - modifyWeights[s] + modifyWeights[i] << '\n';
+		cout << '\n';
+	}
 }
 
 int main()
 {
-	n = 9, m = 14;
+	n = 4, m = 5;
 	g.resize(n);
-	add_edge(0, 1, 4);
-	add_edge(0, 7, 8);
-	add_edge(1, 2, 8);
-	add_edge(7, 8, 8);
-	add_edge(1, 7, 11);
-	add_edge(7, 6, 1);
-	add_edge(8, 6, 6);
-	add_edge(2, 8, 2);
-	add_edge(2, 3, 7);
-	add_edge(2, 5, 4);
-	add_edge(6, 5, 2);
-	add_edge(3, 5, 14);
-	add_edge(3, 4, 9);
-	add_edge(5, 4, 10);
-
-	cout << (dejkstra(g, n) == ford_belman(e) ? "Same" : "Not same");
-
+	graph.resize(n, vector<double>(n, 0));
+	add_edge(0, 1, -5);
+	add_edge(1, 2, 4);
+	add_edge(2, 3, 1);
+	add_edge(0, 3, 3);
+	add_edge(0, 2, 2);
+	johnson();
 }
